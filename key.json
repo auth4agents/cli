@@ -1,0 +1,6 @@
+{
+  "key_type": "operator_root",
+  "message": "Keep private_key secret. Use public_key to register with Auth4Agent.",
+  "private_key": "O2iTovxwzMN4rdVTYD0qUpXg27iWEZExqVAdqqWnOe4NV/uEeQE7k4GwKWyRaF4AEG2KUPTHYY64EDRVzSopSg==",
+  "public_key": "DVf7hHkBO5OBsClskWheABBtilD0x2GOuBA0Vc0qKUo="
+}
