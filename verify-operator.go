@@ -3,17 +3,17 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 )
 
-
 var verifyOperatorCmd = &cobra.Command{
 	Use:   "verify-operator",
 	Short: "Verify operator domain ownership",
-	Long:  "Get DNS TXT record instructions and verify domain ownership",
 }
 
 var verifyStatusCmd = &cobra.Command{
@@ -22,11 +22,10 @@ var verifyStatusCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		operatorID, _ := cmd.Flags().GetString("operator-id")
 		server, _ := cmd.Flags().GetString("server")
+		jsonOut, _ := cmd.Flags().GetBool("json")
 
-		if operatorID == "" {
-			fmt.Fprintf(os.Stderr, "Error: --operator-id is required\n")
-			os.Exit(1)
-		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
 		client := NewClient(server)
 		path := fmt.Sprintf("/api/v1/operators/%s", operatorID)
@@ -38,71 +37,79 @@ var verifyStatusCmd = &cobra.Command{
 			Status           string  `json:"status"`
 		}
 
-		err := client.Get(context.Background(), path, &resp)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		if err := client.Get(ctx, path, &resp); err != nil {
+			fmt.Fprintf(os.Stderr, "Request failed: %v\n", err)
 			os.Exit(1)
 		}
 
+		if jsonOut {
+			_ = json.NewEncoder(os.Stdout).Encode(resp)
+			return
+		}
+
 		if resp.DomainVerifiedAt != nil {
-			fmt.Printf("✓ Domain verified: %s\n", resp.Domain)
+			fmt.Printf("✓ Domain verified\n")
+			fmt.Printf("  Domain: %s\n", resp.Domain)
 			fmt.Printf("  Verified at: %s\n", *resp.DomainVerifiedAt)
 		} else {
-			fmt.Printf("✗ Domain not verified: %s\n", resp.Domain)
-			fmt.Printf("  Run 'agentauth verify instructions --operator-id %s' to get DNS record\n", operatorID)
+			fmt.Printf("✗ Domain not verified\n")
+			fmt.Printf("  Domain: %s\n", resp.Domain)
+			fmt.Printf("  Next:\n")
+			fmt.Printf("    auth4agents verify-operator instructions --operator-id %s\n", operatorID)
 		}
 	},
 }
 
 var verifyInstructionsCmd = &cobra.Command{
 	Use:   "instructions",
-	Short: "Get DNS TXT record instructions for domain verification",
+	Short: "Get DNS TXT record instructions",
 	Run: func(cmd *cobra.Command, args []string) {
 		operatorID, _ := cmd.Flags().GetString("operator-id")
 		server, _ := cmd.Flags().GetString("server")
+		jsonOut, _ := cmd.Flags().GetBool("json")
 
-		if operatorID == "" {
-			fmt.Fprintf(os.Stderr, "Error: --operator-id is required\n")
-			os.Exit(1)
-		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
 		client := NewClient(server)
 		path := fmt.Sprintf("/api/v1/operators/verify/%s", operatorID)
 
 		var resp struct {
-			Domain          string `json:"domain"`
-			TXTRecordName   string `json:"txt_record_name"`
-			TXTRecordValue  string `json:"txt_record_value"`
-			Message         string `json:"message"`
+			Domain         string `json:"domain"`
+			TXTRecordName  string `json:"txt_record_name"`
+			TXTRecordValue string `json:"txt_record_value"`
+			Message        string `json:"message"`
 		}
 
-		err := client.Get(context.Background(), path, &resp)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		if err := client.Get(ctx, path, &resp); err != nil {
+			fmt.Fprintf(os.Stderr, "Request failed: %v\n", err)
 			os.Exit(1)
 		}
 
-		fmt.Printf("\n=== Domain Verification Instructions ===\n\n")
-		fmt.Printf("Domain: %s\n\n", resp.Domain)
-		fmt.Printf("1. Add this TXT record to your DNS:\n\n")
-		fmt.Printf("   Name:  %s\n", resp.TXTRecordName)
-		fmt.Printf("   Value: %s\n\n", resp.TXTRecordValue)
-		fmt.Printf("2. Wait for DNS propagation (a few minutes)\n\n")
-		fmt.Printf("3. Run: agentauth verify confirm --operator-id %s\n\n", operatorID)
+		if jsonOut {
+			_ = json.NewEncoder(os.Stdout).Encode(resp)
+			return
+		}
+
+		fmt.Printf("Domain: %s\n", resp.Domain)
+		fmt.Printf("\nAdd DNS TXT record:\n")
+		fmt.Printf("  Name:  %s\n", resp.TXTRecordName)
+		fmt.Printf("  Value: %s\n", resp.TXTRecordValue)
+		fmt.Printf("\nThen run:\n")
+		fmt.Printf("  auth4agents verify-operator confirm --operator-id %s\n", operatorID)
 	},
 }
 
 var verifyConfirmCmd = &cobra.Command{
 	Use:   "confirm",
-	Short: "Confirm domain verification by checking DNS record",
+	Short: "Confirm domain verification",
 	Run: func(cmd *cobra.Command, args []string) {
 		operatorID, _ := cmd.Flags().GetString("operator-id")
 		server, _ := cmd.Flags().GetString("server")
+		jsonOut, _ := cmd.Flags().GetBool("json")
 
-		if operatorID == "" {
-			fmt.Fprintf(os.Stderr, "Error: --operator-id is required\n")
-			os.Exit(1)
-		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
 		client := NewClient(server)
 		path := fmt.Sprintf("/api/v1/operators/verify/%s", operatorID)
@@ -113,10 +120,14 @@ var verifyConfirmCmd = &cobra.Command{
 			VerifiedAt string `json:"verified_at"`
 		}
 
-		err := client.Post(context.Background(), path, nil, &resp)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		if err := client.Post(ctx, path, nil, &resp); err != nil {
+			fmt.Fprintf(os.Stderr, "Request failed: %v\n", err)
 			os.Exit(1)
+		}
+
+		if jsonOut {
+			_ = json.NewEncoder(os.Stdout).Encode(resp)
+			return
 		}
 
 		if resp.Verified {
@@ -132,19 +143,19 @@ var verifyConfirmCmd = &cobra.Command{
 }
 
 func init() {
-	// Status command
-	verifyStatusCmd.Flags().String("operator-id", "", "Operator ID")
-	verifyStatusCmd.Flags().String("server", "http://localhost:8080", "AgentAuth server URL")
+	verifyStatusCmd.Flags().String("operator-id", "", "operator ID")
+	verifyStatusCmd.Flags().String("server", "http://localhost:8080", "auth4agents server URL")
+	verifyStatusCmd.Flags().Bool("json", false, "output as JSON")
 	verifyStatusCmd.MarkFlagRequired("operator-id")
 
-	// Instructions command
-	verifyInstructionsCmd.Flags().String("operator-id", "", "Operator ID")
-	verifyInstructionsCmd.Flags().String("server", "http://localhost:8080", "AgentAuth server URL")
+	verifyInstructionsCmd.Flags().String("operator-id", "", "operator ID")
+	verifyInstructionsCmd.Flags().String("server", "http://localhost:8080", "auth4agents server URL")
+	verifyInstructionsCmd.Flags().Bool("json", false, "output as JSON")
 	verifyInstructionsCmd.MarkFlagRequired("operator-id")
 
-	// Confirm command
-	verifyConfirmCmd.Flags().String("operator-id", "", "Operator ID")
-	verifyConfirmCmd.Flags().String("server", "http://localhost:8080", "AgentAuth server URL")
+	verifyConfirmCmd.Flags().String("operator-id", "", "operator ID")
+	verifyConfirmCmd.Flags().String("server", "http://localhost:8080", "auth4agents server URL")
+	verifyConfirmCmd.Flags().Bool("json", false, "output as JSON")
 	verifyConfirmCmd.MarkFlagRequired("operator-id")
 
 	verifyOperatorCmd.AddCommand(verifyStatusCmd, verifyInstructionsCmd, verifyConfirmCmd)

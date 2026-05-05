@@ -3,17 +3,17 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 )
 
-var regServer string
-
 var registerCmd = &cobra.Command{
 	Use:   "register",
-	Short: "Register operator or agent with AgentAuth server",
+	Short: "Register operator or agent with auth4agents server",
 }
 
 var registerOperatorCmd = &cobra.Command{
@@ -23,13 +23,20 @@ var registerOperatorCmd = &cobra.Command{
 		domain, _ := cmd.Flags().GetString("domain")
 		publicKey, _ := cmd.Flags().GetString("public-key")
 		server, _ := cmd.Flags().GetString("server")
+		jsonOut, _ := cmd.Flags().GetBool("json")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
 		client := NewClient(server)
-		
+
 		req := struct {
 			Domain        string `json:"domain"`
 			RootPublicKey string `json:"root_public_key"`
-		}{Domain: domain, RootPublicKey: publicKey}
+		}{
+			Domain:        domain,
+			RootPublicKey: publicKey,
+		}
 
 		var resp struct {
 			ID     string `json:"id"`
@@ -37,14 +44,29 @@ var registerOperatorCmd = &cobra.Command{
 			Status string `json:"status"`
 		}
 
-		err := client.Post(context.Background(), "/api/v1/operators", req, &resp)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		if err := client.Post(ctx, "/api/v1/operators", req, &resp); err != nil {
+			fmt.Fprintf(os.Stderr, "Request failed: %v\n", err)
 			os.Exit(1)
 		}
 
-		fmt.Printf("Operator registered: %s\n", resp.ID)
-		fmt.Print("NOTE: Save this operator ID. Use the returned operator ID to register agents under this operator.\n")
+		if resp.ID == "" {
+			fmt.Fprintf(os.Stderr, "Invalid server response: missing operator ID\n")
+			os.Exit(1)
+		}
+
+		if jsonOut {
+			_ = json.NewEncoder(os.Stdout).Encode(resp)
+			return
+		}
+
+		fmt.Printf("✓ Operator registered\n")
+		fmt.Printf("  ID: %s\n", resp.ID)
+		fmt.Printf("  Domain: %s\n", resp.Domain)
+		fmt.Printf("  Status: %s\n", resp.Status)
+
+		fmt.Printf("\nNext:\n")
+		fmt.Printf("  auth4agents verify-operator instructions --operator-id %s\n", resp.ID)
+		fmt.Printf("  auth4agents verify-operator confirm --operator-id %s\n", resp.ID)
 	},
 }
 
@@ -55,21 +77,18 @@ var registerAgentCmd = &cobra.Command{
 		operatorID, _ := cmd.Flags().GetString("operator-id")
 		publicKey, _ := cmd.Flags().GetString("public-key")
 		server, _ := cmd.Flags().GetString("server")
+		jsonOut, _ := cmd.Flags().GetBool("json")
 
-		if operatorID == "" {
-			fmt.Fprintf(os.Stderr, "Error: --operator-id is required\n")
-			os.Exit(1)
-		}
-		if publicKey == "" {
-			fmt.Fprintf(os.Stderr, "Error: --public-key is required\n")
-			os.Exit(1)
-		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
 		client := NewClient(server)
 
 		req := struct {
 			AgentPublicKey string `json:"agent_public_key"`
-		}{AgentPublicKey: publicKey}
+		}{
+			AgentPublicKey: publicKey,
+		}
 
 		var resp struct {
 			DID    string `json:"did"`
@@ -77,40 +96,42 @@ var registerAgentCmd = &cobra.Command{
 		}
 
 		path := fmt.Sprintf("/api/v1/operators/%s/agents", operatorID)
-		err := client.Post(context.Background(), path, req, &resp)
-		if err != nil {
-			// fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			fmt.Fprintf(os.Stderr, "Failed to register agent. Possible reason:\n\t1. Operator not found \n \t2. Invalid public key format \n\t3. Server error\n\t4. Operator domain not verified\n")
+
+		if err := client.Post(ctx, path, req, &resp); err != nil {
+			fmt.Fprintf(os.Stderr, "Request failed: %v\n", err)
 			os.Exit(1)
 		}
 
 		if resp.DID == "" {
-			fmt.Fprintf(os.Stderr, "Error: No DID returned from server\n")
+			fmt.Fprintf(os.Stderr, "Invalid server response: missing DID\n")
 			os.Exit(1)
 		}
 
-		fmt.Printf("✓ Agent registered successfully\n")
+		if jsonOut {
+			_ = json.NewEncoder(os.Stdout).Encode(resp)
+			return
+		}
+
+		fmt.Printf("✓ Agent registered\n")
 		fmt.Printf("  DID: %s\n", resp.DID)
 		fmt.Printf("  Status: %s\n", resp.Status)
 	},
 }
 
 func init() {
-	// Operator flags
 	registerOperatorCmd.Flags().String("domain", "", "operator domain")
-	registerOperatorCmd.Flags().String("public-key", "", "public key (base64)")
+	registerOperatorCmd.Flags().StringP("public-key", "k", "", "public key (base64)")
+	registerOperatorCmd.Flags().String("server", "http://localhost:8080", "auth4agents server URL")
+	registerOperatorCmd.Flags().Bool("json", false, "output as JSON")
 	registerOperatorCmd.MarkFlagRequired("domain")
 	registerOperatorCmd.MarkFlagRequired("public-key")
 
-	// Agent flags
 	registerAgentCmd.Flags().String("operator-id", "", "operator ID")
-	registerAgentCmd.Flags().String("public-key", "", "public key (base64)")
+	registerAgentCmd.Flags().StringP("public-key", "k", "", "public key (base64)")
+	registerAgentCmd.Flags().String("server", "http://localhost:8080", "auth4agents server URL")
+	registerAgentCmd.Flags().Bool("json", false, "output as JSON")
 	registerAgentCmd.MarkFlagRequired("operator-id")
 	registerAgentCmd.MarkFlagRequired("public-key")
-
-	// Global flag for both
-	registerOperatorCmd.Flags().String("server", "http://localhost:8080", "AgentAuth server URL")
-	registerAgentCmd.Flags().String("server", "http://localhost:8080", "AgentAuth server URL")
 
 	registerCmd.AddCommand(registerOperatorCmd, registerAgentCmd)
 	rootCmd.AddCommand(registerCmd)
