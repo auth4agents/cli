@@ -289,7 +289,7 @@ var verifyOperatorConfirmCmd = &cobra.Command{
 			VerifiedAt string `json:"verified_at"`
 		}
 
-		err = client.post(
+		err = client.Post(
 			ctx,
 			path,
 			nil,

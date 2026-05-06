@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -72,10 +74,10 @@ type RegisterOperatorResponse struct {
 }
 
 type RegisterAgentRequest struct {
-	DID             string      `json:"did"`
-	DIDDocument     interface{} `json:"did_document"`
-	AgentPublicKey  string      `json:"agent_public_key"`
-	OperatorID      string      `json:"operator_id"`
+	DID            string      `json:"did"`
+	DIDDocument    interface{} `json:"did_document"`
+	AgentPublicKey string      `json:"agent_public_key"`
+	OperatorID     string      `json:"operator_id"`
 }
 
 type RegisterAgentResponse struct {
@@ -90,7 +92,7 @@ func (c *Client) RegisterOperator(
 
 	var out RegisterOperatorResponse
 
-	err := c.post(
+	err := c.Post(
 		ctx,
 		"/v1/operators",
 		req,
@@ -116,7 +118,7 @@ func (c *Client) RegisterAgent(
 		req.OperatorID,
 	)
 
-	err := c.post(
+	err := c.Post(
 		ctx,
 		path,
 		req,
@@ -141,7 +143,7 @@ func (c *Client) GetChallenge(
 
 	var out ChallengeResponse
 
-	err := c.post(
+	err := c.Post(
 		ctx,
 		"/v1/challenge",
 		reqBody,
@@ -162,7 +164,7 @@ func (c *Client) ExchangeToken(
 
 	var out TokenResponse
 
-	err := c.post(
+	err := c.Post(
 		ctx,
 		"/v1/token",
 		req,
@@ -187,7 +189,7 @@ func (c *Client) VerifyToken(
 
 	var out VerifyResponse
 
-	err := c.post(
+	err := c.Post(
 		ctx,
 		"/v1/verify",
 		reqBody,
@@ -207,68 +209,74 @@ func (c *Client) Get(
 	out interface{},
 ) error {
 
-	req, err := http.NewRequestWithContext(
+	return c.do(
 		ctx,
 		http.MethodGet,
-		c.BaseURL+path,
+		path,
 		nil,
+		out,
 	)
-
-	if err != nil {
-		return err
-	}
-
-	resp, err := c.HTTP.Do(req)
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf(
-			"GET %s failed: %s",
-			path,
-			resp.Status,
-		)
-	}
-
-	if out != nil {
-		return json.NewDecoder(resp.Body).Decode(out)
-	}
-
-	return nil
 }
 
-func (c *Client) post(
+
+func (c *Client) Post(
 	ctx context.Context,
 	path string,
 	payload interface{},
 	out interface{},
 ) error {
 
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return err
+	return c.do(
+		ctx,
+		http.MethodPost,
+		path,
+		payload,
+		out,
+	)
+}
+
+func (c *Client) do(
+	ctx context.Context,
+	method string,
+	path string,
+	payload interface{},
+	out interface{},
+) error {
+
+	var body io.Reader
+
+	if payload != nil {
+
+		data, err := json.Marshal(payload)
+
+		if err != nil {
+			return err
+		}
+
+		body = bytes.NewBuffer(data)
 	}
 
 	req, err := http.NewRequestWithContext(
 		ctx,
-		http.MethodPost,
+		method,
 		c.BaseURL+path,
-		bytes.NewBuffer(body),
+		body,
 	)
 
 	if err != nil {
 		return err
 	}
 
-	req.Header.Set(
-		"Content-Type",
-		"application/json",
-	)
+	if payload != nil {
+
+		req.Header.Set(
+			"Content-Type",
+			"application/json",
+		)
+	}
 
 	resp, err := c.HTTP.Do(req)
+
 	if err != nil {
 		return err
 	}
@@ -276,16 +284,41 @@ func (c *Client) post(
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
+
+		respBody, _ := io.ReadAll(
+			resp.Body,
+		)
+
 		return fmt.Errorf(
-			"POST %s failed: %s",
+			"%s %s failed: %s",
+			method,
 			path,
-			resp.Status,
+			strings.TrimSpace(
+				string(respBody),
+			),
 		)
 	}
 
-	if out != nil {
-		return json.NewDecoder(resp.Body).Decode(out)
+	if out == nil {
+		return nil
 	}
 
-	return nil
+	return json.NewDecoder(resp.Body).
+		Decode(out)
+}
+
+func (c *Client) Patch(
+	ctx context.Context,
+	path string,
+	payload interface{},
+	out interface{},
+) error {
+
+	return c.do(
+		ctx,
+		http.MethodPatch,
+		path,
+		payload,
+		out,
+	)
 }
