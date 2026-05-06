@@ -119,16 +119,16 @@ var registerAgentCmd = &cobra.Command{
 }
 
 func init() {
-	registerOperatorCmd.Flags().String("domain", "", "operator domain")
+	registerOperatorCmd.Flags().StringP("domain", "d", "", "operator domain")
 	registerOperatorCmd.Flags().StringP("public-key", "k", "", "public key (base64)")
-	registerOperatorCmd.Flags().String("server", "http://localhost:8080", "auth4agents server URL")
+	registerOperatorCmd.Flags().StringP("server", "s", "http://localhost:8080", "auth4agents server URL")
 	registerOperatorCmd.Flags().Bool("json", false, "output as JSON")
 	registerOperatorCmd.MarkFlagRequired("domain")
 	registerOperatorCmd.MarkFlagRequired("public-key")
 
-	registerAgentCmd.Flags().String("operator-id", "", "operator ID")
+	registerAgentCmd.Flags().StringP("operator-id", "o", "", "operator ID")
 	registerAgentCmd.Flags().StringP("public-key", "k", "", "public key (base64)")
-	registerAgentCmd.Flags().String("server", "http://localhost:8080", "auth4agents server URL")
+	registerAgentCmd.Flags().StringP("server", "s", "http://localhost:8080", "auth4agents server URL")
 	registerAgentCmd.Flags().Bool("json", false, "output as JSON")
 	registerAgentCmd.MarkFlagRequired("operator-id")
 	registerAgentCmd.MarkFlagRequired("public-key")

@@ -80,7 +80,7 @@ var verifyInstructionsCmd = &cobra.Command{
 			TXTRecordValue string `json:"txt_record_value"`
 			Message        string `json:"message"`
 		}
-
+		println(resp.TXTRecordValue)
 		if err := client.Get(ctx, path, &resp); err != nil {
 			fmt.Fprintf(os.Stderr, "Request failed: %v\n", err)
 			os.Exit(1)
