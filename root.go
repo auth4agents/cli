@@ -24,6 +24,6 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "~/.agentauth/config.json", "config file path")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "~/.auth4agent/config.json", "config file path")
 	rootCmd.PersistentFlags().BoolVar(&quiet, "quiet", false, "suppress non-error output")
 }
