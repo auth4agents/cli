@@ -1,21 +1,59 @@
-# Auth4Agent CLI Guide
+# Auth4Agent CLI Setup Guide
 
 ## Requirements
 
-- Auth4Agent server running
 - Go 1.23+
+- Running Auth4Agent server
 - Verified operator domain
 - Network access to Auth4Agent server
 
 ---
 
-# 1. Build CLI
+# 1. Clone Repository
+
+## Windows
+
+```powershell
+git clone https://github.com/auth4agents/cli.git
+cd cli
+```
+
+---
+
+## macOS/Linux
+
+```bash
+git clone https://github.com/auth4agents/cli.git
+cd cli
+```
+
+---
+
+# 2. Install Dependencies
+
+## Windows
+
+```powershell
+go mod tidy
+```
+
+---
+
+## macOS/Linux
+
+```bash
+go mod tidy
+```
+
+---
+
+# 3. Build CLI
 
 ## Windows
 
 ```powershell
 go build -o build/auth4agent.exe
-````
+```
 
 Run:
 
@@ -27,31 +65,40 @@ Run:
 
 ## macOS/Linux
 
-```bash id="m8k4wp"
+```bash
 go build -o build/auth4agent
 ```
 
 Run:
 
-```bash id="h2f7qn"
+```bash
 ./build/auth4agent
 ```
 
 ---
 
-# 2. Initialize Operator Identity
+# 4. Operator Setup
 
-Creates:
+Operator setup establishes:
+- trust domain
+- root identity
+- authorization authority
 
-* operator keypair
-* operator config
-* operator identity
+This is typically performed once per organization/domain.
+
+---
+
+# 5. Initialize Operator Identity
+
+Generates:
+- operator keypair
+- operator identity config
 
 ---
 
 ## Windows
 
-```powershell id="c5t1ma"
+```powershell
 ./build/auth4agent.exe init --operator --domain example.com --server http://localhost:8080
 ```
 
@@ -59,46 +106,21 @@ Creates:
 
 ## macOS/Linux
 
-```bash id="y3w7vb"
+```bash
 ./build/auth4agent init --operator --domain example.com --server http://localhost:8080
 ```
 
 ---
 
-# 3. Operator Files
+# 6. Register Operator
 
-Generated automatically.
-
-## Windows
-
-```text id="s6q2rf"
-C:\Users\<USER>\.auth4agent\
-```
-
-## macOS/Linux
-
-```text id="n9m1xk"
-~/.auth4agent/
-```
-
-Files:
-
-```text id="q4v7ep"
-operator.json
-keys/operator.key
-```
-
----
-
-# 4. Register Operator
-
-Registers operator with Auth4Agent server.
+Registers operator with server.
 
 ---
 
 ## Windows
 
-```powershell id="w7k5fd"
+```powershell
 ./build/auth4agent.exe register operator
 ```
 
@@ -106,25 +128,30 @@ Registers operator with Auth4Agent server.
 
 ## macOS/Linux
 
-```bash id="d1z9qu"
+```bash
 ./build/auth4agent register operator
 ```
 
 Expected:
 
-```text id="j0f8ny"
+```text
 operator registered
+```
+
+Save:
+```text
+operator_id
 ```
 
 ---
 
-# 5. Get DNS Verification Instructions
+# 7. Get DNS Verification Instructions
 
 ---
 
 ## Windows
 
-```powershell id="x8u4cp"
+```powershell
 ./build/auth4agent.exe verify-operator instructions
 ```
 
@@ -132,26 +159,24 @@ operator registered
 
 ## macOS/Linux
 
-```bash id="g7r3lt"
+```bash
 ./build/auth4agent verify-operator instructions
 ```
 
 Expected:
 
-```text id="e5y1mw"
+```text
 TXT record name
 TXT record value
 ```
 
 ---
 
-# 6. Add DNS TXT Record
-
-Add TXT record in DNS provider.
+# 8. Add DNS TXT Record
 
 Example:
 
-```text id="r2p9vk"
+```text
 Type: TXT
 Host: _auth4agents
 Value: verification_token
@@ -161,13 +186,13 @@ Wait for DNS propagation.
 
 ---
 
-# 7. Confirm Operator Verification
+# 9. Confirm Operator Verification
 
 ---
 
 ## Windows
 
-```powershell id="n6w2zx"
+```powershell
 ./build/auth4agent.exe verify-operator confirm
 ```
 
@@ -175,31 +200,41 @@ Wait for DNS propagation.
 
 ## macOS/Linux
 
-```bash id="b3m8ha"
+```bash
 ./build/auth4agent verify-operator confirm
 ```
 
 Expected:
 
-```text id="q9k5uv"
+```text
 operator verified
 ```
 
 ---
 
-# 8. Initialize Agent Identity
+# 10. Agent Setup
 
-Creates:
+Agents are autonomous machine identities.
 
-* agent DID
-* agent keypair
-* DID document
+Each agent:
+- owns its own DID
+- owns its own private key
+- authenticates independently
+
+---
+
+# 11. Initialize Agent Identity
+
+Generates:
+- DID
+- agent keypair
+- DID document
 
 ---
 
 ## Windows
 
-```powershell id="f4v1pb"
+```powershell
 ./build/auth4agent.exe init --domain example.com --server http://localhost:8080
 ```
 
@@ -207,30 +242,22 @@ Creates:
 
 ## macOS/Linux
 
-```bash id="u8x7tr"
+```bash
 ./build/auth4agent init --domain example.com --server http://localhost:8080
 ```
 
 Expected DID:
 
-```text id="y5c0jd"
+```text
 did:agent:example.com:...
-```
-
-Generated files:
-
-```text id="v1n8kg"
-agent.json
-keys/agent.key
 ```
 
 ---
 
-# 9. Register Agent
+# 12. Register Agent
 
 Use operator ID from:
-
-```text id="t3q6me"
+```text
 register operator
 ```
 
@@ -240,7 +267,7 @@ output.
 
 ## Windows
 
-```powershell id="j2h4ys"
+```powershell
 ./build/auth4agent.exe register agent --operator-id YOUR_OPERATOR_ID
 ```
 
@@ -248,27 +275,62 @@ output.
 
 ## macOS/Linux
 
-```bash id="r8p1cw"
+```bash
 ./build/auth4agent register agent --operator-id YOUR_OPERATOR_ID
 ```
 
 Expected:
 
-```text id="m4z9qt"
+```text
 agent registered
 ```
 
 ---
 
-# 10. Issue JWT Token
+# 13. Assign Agent Scopes
 
-Requests scoped JWT using DID proof authentication.
+Authorization is operator-controlled.
+
+Agents cannot assign permissions to themselves.
 
 ---
 
 ## Windows
 
-```powershell id="h7k3xn"
+```powershell
+./build/auth4agent.exe agent-scopes set --scopes read:payments
+```
+
+---
+
+## macOS/Linux
+
+```bash
+./build/auth4agent agent-scopes set --scopes read:payments
+```
+
+Example scopes:
+
+```text
+read:payments
+read:orders
+write:reports
+```
+
+---
+
+# 14. Request JWT Token
+
+Agents authenticate using:
+- DID
+- challenge signing
+- proof exchange
+
+---
+
+## Windows
+
+```powershell
 ./build/auth4agent.exe issue --scope read:payments --aud api.example.com
 ```
 
@@ -276,40 +338,57 @@ Requests scoped JWT using DID proof authentication.
 
 ## macOS/Linux
 
-```bash id="e1u9lp"
+```bash
 ./build/auth4agent issue --scope read:payments --aud api.example.com
 ```
 
 Flow:
-
 1. Request challenge
 2. Sign challenge locally
-3. Exchange proof
+3. Exchange signed proof
 4. Receive JWT
 
 Expected:
 
-```text id="k6x2vd"
+```text
 token issued
 ```
 
 ---
 
-# 11. Verify JWT Offline
+# 15. Authorization Enforcement
+
+If an agent requests unauthorized scopes:
+
+```powershell
+./build/auth4agent.exe issue --scope admin:root --aud api.example.com
+```
+
+Expected:
+
+```text
+scope not allowed
+```
+
+Authorization is deny-by-default.
+
+---
+
+# 16. Verify JWT Offline
 
 Performs:
+- signature verification
+- issuer validation
+- expiration validation
+- JWKS validation
 
-* JWT decode
-* expiration check
-* claim inspection
-
-No server call.
+No online introspection required.
 
 ---
 
 ## Windows
 
-```powershell id="w0m8rc"
+```powershell
 ./build/auth4agent.exe verify --token "JWT_TOKEN"
 ```
 
@@ -317,35 +396,31 @@ No server call.
 
 ## macOS/Linux
 
-```bash id="s4q5yb"
+```bash
 ./build/auth4agent verify --token "JWT_TOKEN"
 ```
 
 Expected:
-
-* issuer
-* audience
-* scope
-* expiration
-* subject DID
+- issuer
+- audience
+- scope
+- expiration
+- signature verified
 
 ---
 
-# 12. Verify JWT Online
+# 17. Verify JWT Online
 
 Performs:
-
-* signature verification
-* token validation
-* revocation checks
-
-Requires server access.
+- server-side verification
+- revocation checks
+- online introspection
 
 ---
 
 ## Windows
 
-```powershell id="p8t1fx"
+```powershell
 ./build/auth4agent.exe verify --token "JWT_TOKEN" --online
 ```
 
@@ -353,23 +428,23 @@ Requires server access.
 
 ## macOS/Linux
 
-```bash id="a6n4kv"
+```bash
 ./build/auth4agent verify --token "JWT_TOKEN" --online
 ```
 
 Expected:
 
-```text id="u2y7mw"
-verified_online: true
+```text
+online verification: success
 ```
 
 ---
 
-# 13. JSON Output
+# 18. JSON Output
 
 Most commands support:
 
-```text id="f7v0qd"
+```text
 --json
 ```
 
@@ -377,23 +452,25 @@ Example:
 
 ## Windows
 
-```powershell id="b5r2nh"
-./build/auth4agent.exe issue --scope read:* --aud api.example.com --json
-```
-
-## macOS/Linux
-
-```bash id="m9x8tc"
-./build/auth4agent issue --scope read:* --aud api.example.com --json
+```powershell
+./build/auth4agent.exe verify --token "JWT_TOKEN" --json
 ```
 
 ---
 
-# 14. CLI Configuration Locations
+## macOS/Linux
+
+```bash
+./build/auth4agent verify --token "JWT_TOKEN" --json
+```
+
+---
+
+# 19. Configuration Directory
 
 ## Windows
 
-```text id="r3m7wb"
+```text
 C:\Users\<USER>\.auth4agent\
 ```
 
@@ -401,50 +478,27 @@ C:\Users\<USER>\.auth4agent\
 
 ## macOS/Linux
 
-```text id="d8u1vp"
+```text
 ~/.auth4agent/
 ```
 
 ---
 
-# 15. Configuration Files
+# 20. Generated Files
 
 ## Operator
 
-```text id="f1y5qn"
+```text
 operator.json
+keys/operator.key
 ```
-
-Contains:
-
-* operator ID
-* domain
-* public key
-* server URL
 
 ---
 
 ## Agent
 
-```text id="t6z2mx"
+```text
 agent.json
-```
-
-Contains:
-
-* DID
-* DID document
-* public key
-* operator relationship
-
----
-
-# 16. Key Files
-
-Stored separately.
-
-```text id="e0p4ka"
-keys/operator.key
 keys/agent.key
 ```
 
@@ -452,40 +506,43 @@ Private keys never leave local machine.
 
 ---
 
-# 17. Security Notes
+# 21. Security Notes
 
-* Never commit `.auth4agent`
-* Never share `.key` files
-* Backup identity files securely
-* Use HTTPS in production
-* Rotate signing keys periodically
-* Verify DNS ownership before production use
-
----
-
-# 18. Common Commands
-
-| Action            | Command                   |
-| ----------------- | ------------------------- |
-| Init operator     | `init --operator`         |
-| Register operator | `register operator`       |
-| Verify operator   | `verify-operator confirm` |
-| Init agent        | `init`                    |
-| Register agent    | `register agent`          |
-| Issue token       | `issue`                   |
-| Verify token      | `verify`                  |
+- Never commit `.auth4agent`
+- Never share `.key` files
+- Backup identities securely
+- Use HTTPS in production
+- Rotate server signing keys
+- Restrict operator access
+- Verify DNS ownership before production deployment
 
 ---
 
-# 19. Full Example Flow
+# 22. Common Commands
 
-```text id="c9k3rf"
+| Action | Command |
+|---|---|
+| Init operator | `init --operator` |
+| Register operator | `register operator` |
+| Verify operator | `verify-operator confirm` |
+| Init agent | `init` |
+| Register agent | `register agent` |
+| Assign scopes | `agent-scopes set` |
+| Issue token | `issue` |
+| Verify token | `verify` |
+
+---
+
+# 23. Full Example Flow
+
+```text
 1. init --operator
 2. register operator
 3. verify-operator instructions
 4. verify-operator confirm
 5. init
 6. register agent
-7. issue
-8. verify
+7. agent-scopes set
+8. issue
+9. verify
 ```
