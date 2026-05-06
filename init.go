@@ -33,13 +33,51 @@ var initCmd = &cobra.Command{
 		}
 
 		if !initOperator {
-			// For agent, also generate a DID placeholder
-			// (full DID requires operator domain, so leave as template)
+			// Agent mode
 			output["did_template"] = "did:agent:{operator_domain}:{suffix}"
 			output["message"] = "Register this public_key with your operator to get a DID"
+			
+			// Save agent config
+			cfg := &AgentConfig{
+				PrivateKey: privateKeyB64,
+				ServerURL:  "http://localhost:8080",
+			}
+			
+			if existing, err := LoadAgentConfig(); err == nil {
+				cfg.DID = existing.DID
+				cfg.OperatorID = existing.OperatorID
+				cfg.ServerURL = existing.ServerURL
+			}
+			
+			if err := SaveAgentConfig(cfg); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: Could not save agent config: %v\n", err)
+			} else {
+				fmt.Fprintf(os.Stderr, "✓ Agent config saved to ~/.agentauth/agent.json\n")
+			}
 		} else {
+			// Operator mode
 			output["key_type"] = "operator_root"
 			output["message"] = "Keep private_key secret. Use public_key to register with Auth4Agent."
+			
+			// Save operator config
+			cfg := &OperatorConfig{
+				RootPublicKey:  publicKeyB64,
+				RootPrivateKey: privateKeyB64,
+				ServerURL:      "http://localhost:8080",
+			}
+			
+			if existing, err := LoadOperatorConfig(); err == nil {
+				cfg.ID = existing.ID
+				cfg.Domain = existing.Domain
+				cfg.DomainVerifiedAt = existing.DomainVerifiedAt
+				cfg.ServerURL = existing.ServerURL
+			}
+			
+			if err := SaveOperatorConfig(cfg); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: Could not save operator config: %v\n", err)
+			} else {
+				fmt.Fprintf(os.Stderr, "✓ Operator config saved to ~/.agentauth/operator.json\n")
+			}
 		}
 
 		var outData []byte
@@ -65,6 +103,5 @@ var initCmd = &cobra.Command{
 func init() {
 	initCmd.Flags().BoolVar(&initOperator, "operator", false, "generate operator root key (default: agent key)")
 	initCmd.Flags().StringVar(&initOutput, "output", "", "output file path")
-
 	rootCmd.AddCommand(initCmd)
 }

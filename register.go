@@ -48,7 +48,21 @@ var registerOperatorCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "Request failed: %v\n", err)
 			os.Exit(1)
 		}
+		cfg, err := LoadOperatorConfig()
+		if err != nil {
+			cfg = &OperatorConfig{
+				ServerURL: server,
+			}
+		}
 
+		cfg.ID = resp.ID
+		cfg.Domain = domain
+		cfg.RootPublicKey = publicKey
+
+		// Save back
+		if err := SaveOperatorConfig(cfg); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Could not save operator config: %v\n", err)
+		}
 		if resp.ID == "" {
 			fmt.Fprintf(os.Stderr, "Invalid server response: missing operator ID\n")
 			os.Exit(1)
@@ -115,6 +129,31 @@ var registerAgentCmd = &cobra.Command{
 		fmt.Printf("✓ Agent registered\n")
 		fmt.Printf("  DID: %s\n", resp.DID)
 		fmt.Printf("  Status: %s\n", resp.Status)
+
+		cfg, err := LoadAgentConfig()
+		if err != nil {
+			cfg = &AgentConfig{
+				ServerURL: server,
+			}
+		}
+		cfg.DID = resp.DID
+		cfg.OperatorID = operatorID
+		if server != "" {
+			cfg.ServerURL = server
+		}
+
+		// Preserve private key from init
+		if cfg.PrivateKey == "" {
+			if existing, err := LoadAgentConfig(); err == nil && existing.PrivateKey != "" {
+				cfg.PrivateKey = existing.PrivateKey
+			}
+		}
+
+		if err := SaveAgentConfig(cfg); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Could not save agent config: %v\n", err)
+		}
+		
+		
 	},
 }
 
@@ -130,6 +169,7 @@ func init() {
 	registerAgentCmd.Flags().StringP("public-key", "k", "", "public key (base64)")
 	registerAgentCmd.Flags().StringP("server", "s", "http://localhost:8080", "auth4agents server URL")
 	registerAgentCmd.Flags().Bool("json", false, "output as JSON")
+	registerAgentCmd.Flags().Bool("save-config", true, "save DID to local config")
 	registerAgentCmd.MarkFlagRequired("operator-id")
 	registerAgentCmd.MarkFlagRequired("public-key")
 
