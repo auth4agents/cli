@@ -15,6 +15,8 @@ Unlike traditional API key systems, Auth4Agent is built around cryptographic ide
 
 ---
 
+![Flow](./images/auth4agent_auth_flow.svg)
+
 # Why Auth4Agent Exists
 
 Most existing authentication systems were designed for humans:
