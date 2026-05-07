@@ -60,14 +60,15 @@ var scopesSetCmd = &cobra.Command{
 		defer cancel()
 
 		path := fmt.Sprintf(
-			"/v1/operators/%s/agents/%s/scopes",
-			operatorCfg.ID,
-			cfg.DID,
-		)
+	"/v1/operators/%s/agents/scopes",
+	operatorCfg.ID,
+)
 
 		payload := map[string]interface{}{
-			"allowed_scopes": scopes,
-		}
+	"did": cfg.DID,
+
+	"allowed_scopes": scopes,
+}
 
 		var out map[string]interface{}
 
