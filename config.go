@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -21,14 +22,12 @@ type KeyConfig struct {
 }
 
 type AgentConfig struct {
+	AgentID    string `json:"agent_id"`  // ADD THIS - database ID
 	DID        string `json:"did"`
 	OperatorID string `json:"operator_id"`
 	ServerURL  string `json:"server_url"`
-
-	PublicKey string `json:"public_key"`
-
-	KeyConfig KeyConfig `json:"key"`
-
+	PublicKey  string `json:"public_key"`
+	KeyConfig  KeyConfig `json:"key"`
 	DIDDocument *DIDDocument `json:"did_document"`
 }
 
@@ -287,4 +286,37 @@ func LoadPrivateKeyFile(
 	}
 
 	return string(data), nil
+}
+
+
+func UpdateServerURL(serverURL string) error {
+	// Try updating agent config
+	if cfg, err := LoadAgentConfig(); err == nil {
+		cfg.ServerURL = serverURL
+		return SaveAgentConfig(cfg)
+	}
+	
+	// Try updating operator config
+	if cfg, err := LoadOperatorConfig(); err == nil {
+		cfg.ServerURL = serverURL
+		return SaveOperatorConfig(cfg)
+	}
+	
+	return fmt.Errorf("no configuration found")
+}
+
+
+// GetAgentID loads agent config and returns the agent's database ID
+// Note: This requires storing the agent ID in the config during registration
+func GetAgentID() (string, error) {
+	cfg, err := LoadAgentConfig()
+	if err != nil {
+		return "", err
+	}
+	
+	if cfg.AgentID == "" {
+		return "", fmt.Errorf("agent ID not found in config")
+	}
+	
+	return cfg.AgentID, nil
 }

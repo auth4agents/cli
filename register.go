@@ -183,8 +183,10 @@ var registerAgentCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		cfg.OperatorID = operatorID
+cfg.AgentID = resp.ID  // ADD THIS LINE
+cfg.OperatorID = operatorID
 
+err = SaveAgentConfig(cfg)
 		err = SaveAgentConfig(cfg)
 		if err != nil {
 			fmt.Fprintf(

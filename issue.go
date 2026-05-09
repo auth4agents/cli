@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -130,25 +131,33 @@ var issueCmd = &cobra.Command{
 			proof,
 		)
 
-		tokenResp, err := client.ExchangeToken(
-			ctx,
-			TokenRequest{
-				DID:       req.DID,
-				Challenge: req.Proof.Challenge,
-				Nonce:     req.Proof.Nonce,
-				Signature: req.Proof.Signature,
-				Scope:     req.Scope,
-				Audience:  req.Audience,
-				TTL:       req.TTL,
-			},
-		)
+		tokenResp, err := client.ExchangeToken(ctx, TokenRequest{
+			DID:       req.DID,
+			Challenge: req.Proof.Challenge,
+			Nonce:     req.Proof.Nonce,
+			Signature: req.Proof.Signature,
+			Scope:     req.Scope,
+			Audience:  req.Audience,
+			TTL:       req.TTL,
+		})
 
 		if err != nil {
-			fmt.Fprintf(
-				os.Stderr,
-				"token exchange failed: %v\n",
-				err,
-			)
+			// Enhanced error messages for new status codes
+			errMsg := err.Error()
+
+			if strings.Contains(errMsg, "410") || strings.Contains(errMsg, "challenge expired") {
+				fmt.Fprintf(os.Stderr, "Challenge expired. Please request a new challenge.\n")
+			} else if strings.Contains(errMsg, "409") || strings.Contains(errMsg, "already used") {
+				fmt.Fprintf(os.Stderr, "Challenge already used. Please request a new challenge.\n")
+			} else if strings.Contains(errMsg, "404") || strings.Contains(errMsg, "not found") {
+				fmt.Fprintf(os.Stderr, "Challenge not found. Please request a new challenge.\n")
+			} else if strings.Contains(errMsg, "agent is not active") || strings.Contains(errMsg, "agent has been revoked") {
+				fmt.Fprintf(os.Stderr, "Agent is revoked or suspended. Cannot issue token.\n")
+			} else if strings.Contains(errMsg, "scope not allowed") {
+				fmt.Fprintf(os.Stderr, "Scope '%s' is not allowed for this agent.\n", issueScope)
+			} else {
+				fmt.Fprintf(os.Stderr, "Token exchange failed: %v\n", err)
+			}
 
 			os.Exit(1)
 		}

@@ -81,6 +81,7 @@ type RegisterAgentRequest struct {
 }
 
 type RegisterAgentResponse struct {
+	ID     string `json:"id"`
 	DID    string `json:"did"`
 	Status string `json:"status"`
 }
@@ -242,69 +243,46 @@ func (c *Client) do(
 	payload interface{},
 	out interface{},
 ) error {
-
 	var body io.Reader
-
+	
 	if payload != nil {
-
 		data, err := json.Marshal(payload)
-
 		if err != nil {
 			return err
 		}
-
 		body = bytes.NewBuffer(data)
 	}
-
-	req, err := http.NewRequestWithContext(
-		ctx,
-		method,
-		c.BaseURL+path,
-		body,
-	)
-
+	
+	req, err := http.NewRequestWithContext(ctx, method, c.BaseURL+path, body)
 	if err != nil {
 		return err
 	}
-
+	
 	if payload != nil {
-
-		req.Header.Set(
-			"Content-Type",
-			"application/json",
-		)
+		req.Header.Set("Content-Type", "application/json")
 	}
-
+	
 	resp, err := c.HTTP.Do(req)
-
 	if err != nil {
 		return err
 	}
-
 	defer resp.Body.Close()
-
+	
 	if resp.StatusCode >= 400 {
-
-		respBody, _ := io.ReadAll(
-			resp.Body,
-		)
-
-		return fmt.Errorf(
-			"%s %s failed: %s",
-			method,
-			path,
-			strings.TrimSpace(
-				string(respBody),
-			),
+		respBody, _ := io.ReadAll(resp.Body)
+		
+		// Include status code in error for better handling
+		return fmt.Errorf("%s %s failed (status %d): %s",
+			method, path, resp.StatusCode,
+			strings.TrimSpace(string(respBody)),
 		)
 	}
-
+	
 	if out == nil {
 		return nil
 	}
-
-	return json.NewDecoder(resp.Body).
-		Decode(out)
+	
+	return json.NewDecoder(resp.Body).Decode(out)
 }
 
 func (c *Client) Patch(
