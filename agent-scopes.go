@@ -33,7 +33,7 @@ var scopesSetCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
-		// CORRECTED: Use DID in path instead of operator ID
+		// Use operator ID from config
 		path := fmt.Sprintf("/v1/operators/%s/agents/scopes", cfg.OperatorID)
 		
 		payload := map[string]interface{}{
@@ -95,13 +95,14 @@ var scopesListCmd = &cobra.Command{
 }
 
 func init() {
-	scopesListCmd.Flags().StringSlice("scopes", []string{}, "allowed scopes")
+	// Only add flags for the set command
+	scopesSetCmd.Flags().StringSlice("scopes", []string{}, "allowed scopes (comma-separated)")
+	scopesSetCmd.MarkFlagRequired("scopes")
+	
+	// The list command doesn't need any flags
+	// Add both commands to scopesCmd
 	scopesCmd.AddCommand(scopesSetCmd, scopesListCmd)
-	rootCmd.AddCommand(scopesCmd)
-}
-
-func init() {
-	scopesListCmd.Flags().StringSlice("scopes", []string{}, "allowed scopes")
-	scopesCmd.AddCommand(scopesSetCmd, scopesListCmd)
+	
+	// Add scopesCmd to rootCmd
 	rootCmd.AddCommand(scopesCmd)
 }
